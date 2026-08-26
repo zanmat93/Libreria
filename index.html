@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestione Inventario EAN</title>
+<!-- Libreria per la lettura dei codici a barre via Fotocamera -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<style>
+body { font-family: system-ui, sans-serif; padding: 15px; max-width: 500px; margin: auto; background-color: #f9f9f9; }
+.card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+.btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; background: #007bff; color: white; margin-right: 5px; margin-bottom: 5px; }
+.btn-secondary { background: #6c757d; }
+.btn-success { background: #28a745; width: 100%; margin-top: 10px; }
+input { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+#reader { width: 100%; display: none; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+.status { font-size: 0.9em; color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h2>Gestione Prodotti</h2>
+
+<!-- Sezione Scanner e Modalità -->
+<div class="card">
+<button id="btn-camera" class="btn">Avvia Scanner Cam</button>
+<button id="btn-stop" class="btn btn-secondary" style="display:none;">Ferma Cam</button>
+
+<!-- Contenitore Videocamera -->
+<div id="reader"></div>
+</div>
+
+<!-- Sezione Inserimento / Ricerca Semi-Manuale -->
+<div class="card">
+<h3>Inserimento EAN</h3>
+<label for="input-ean">Codice a Barre (EAN):</label>
+<input type="text" id="input-ean" placeholder="Es. 8001234567890">
+
+<button id="btn-cerca-ean" class="btn btn-secondary">Cerca Dati via API</button>
+<p id="status-msg" class="status"></p>
+
+<hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+
+<label for="prod-nome">Nome Prodotto:</label>
+<input type="text" id="prod-nome" placeholder="Inserisci o attendi la ricerca...">
+
+<label for="prod-marca">Marca:</label>
+<input type="text" id="prod-marca" placeholder="Inserisci o attendi la ricerca...">
+
+<button id="btn-salva" class="btn btn-success">Salva Prodotto</button>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+let html5QrCode = null;
+
+const btnCamera = document.getElementById("btn-camera");
+const btnStop = document.getElementById("btn-stop");
+const btnCercaEan = document.getElementById("btn-cerca-ean");
+const btnSalva = document.getElementById("btn-salva");
+const inputEan = document.getElementById("input-ean");
+const statusMsg = document.getElementById("status-msg");
+
+// Event Listeners
+btnCamera.addEventListener("click", avviaScanner);
+btnStop.addEventListener("click", fermaScanner);
+btnCercaEan.addEventListener("click", () => cercaDatiEan(inputEan.value.trim()));
+btnSalva.addEventListener("click", salvaProdotto);
+
+// 1. Avvio Fotocamera e Lettore Codici
+function avviaScanner() {
+document.getElementById("reader").style.display = "block";
+btnCamera.style.display = "none";
+btnStop.style.display = "inline-block";
+
+html5QrCode = new Html5Qrcode("reader");
+
+const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+// Avvia la cam posteriore ("environment")
+html5QrCode.start(
+{ facingMode: "environment" },
+config,
+(decodedText) => {
+// Quando legge un codice con successo:
+inputEan.value = decodedText;
+fermaScanner();
+cercaDatiEan(decodedText); // Scarica i dati in automatico
+},
+(errorMessage) => {
+// Errore di scansione continuo (normale finché non inquadra il codice)
+}
+).catch(err => {
+alert("Impossibile accedere alla fotocamera. Verifica i permessi del browser.");
+fermaScanner();
+});
+}
+
+// 2. Stop Fotocamera
+function fermaScanner() {
+if (html5QrCode && html5QrCode.isScanning) {
+html5QrCode.stop().then(() => {
+document.getElementById("reader").style.display = "none";
+btnCamera.style.display = "inline-block";
+btnStop.style.display = "none";
+}).catch(err => console.error(err));
+} else {
+document.getElementById("reader").style.display = "none";
+btnCamera.style.display = "inline-block";
+btnStop.style.display = "none";
+}
+}
+
+// 3. Ricerca Semi-Manuale tramite API (OpenFoodFacts)
+async function cercaDatiEan(ean) {
+if (!ean) {
+alert("Inserisci un codice EAN.");
+return;
+}
+
+statusMsg.innerText = "Ricerca dati in corso...";
+
+try {
+const response = await fetch(https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
+const data = await response.json();
+
+if (data.status === 1) {
+document.getElementById("prod-nome").value = data.product.product_name || "Nome non trovato";
+document.getElementById("prod-marca").value = data.product.brands || "Marca non trovata";
+statusMsg.innerText = "Dati caricati con successo!";
+} else {
+statusMsg.innerText = "Prodotto non trovato nel database. Compila i campi manualmente.";
+}
+} catch (error) {
+console.error(error);
+statusMsg.innerText = "Errore durante il recupero dei dati.";
+}
+}
+
+// 4. Salva Dati
+function salvaProdotto() {
+const ean = inputEan.value;
+const nome = document.getElementById("prod-nome").value;
+const marca = document.getElementById("prod-marca").value;
+
+if (!ean || !nome) {
+alert("Compila almeno il codice EAN e il Nome del prodotto.");
+return;
+}
+
+alert(Prodotto Salvato!\nEAN:${ean}\nNome: latex
+{nome}\nMarca: 
+
+{marca}`);
+
+// Resetta form
+inputEan.value = "";
+document.getElementById("prod-nome").value = "";
+document.getElementById("prod-marca").value = "";
+statusMsg.innerText = "";
+}
+});
+</script>
+</body>
+</html>
